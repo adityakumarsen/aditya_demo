@@ -37,25 +37,26 @@ export interface FeedbackTagRequest {
 }
 
 export interface ContinuousFeedbackResponse {
-  feedbackId: number;
-  employeeId: number;
+  feedbackId: number | string;
+  id?: string;
+  employeeId: number | string;
   employeeName: string;
-  managerId: number;
+  managerId: number | string;
   managerName: string;
   feedbackType: FeedbackType;
   tag: FeedbackTagResponse;
   description: string;
 
   status: ContinuousStatus;
-  createdBy: number;
+  createdBy: number | string;
   replyCount?: number;
   createdAt: string;
   publishedAt?: string; // Set when the draft is published; null if created directly as published (use createdAt fallback)
 }
 
 export interface ContinuousFeedbackRequest {
-  employeeId: number;
-  managerId: number;
+  employeeId: number | string;
+  managerId?: number | string;
   feedbackType: FeedbackType;
   tagId: number;
   description: string;
@@ -64,20 +65,20 @@ export interface ContinuousFeedbackRequest {
 }
 
 export interface FeedbackReplyResponse {
-  replyId: number;
-  feedbackId: number;
-  employeeId: number;
+  replyId: number | string;
+  feedbackId: number | string;
+  employeeId: number | string;
   employeeName: string;
   replyText: string;
-  parentId?: number;
+  parentId?: number | string;
   children?: FeedbackReplyResponse[];
   createdAt: string;
 }
 
 export interface FeedbackReplyRequest {
-  employeeId: number;
+  employeeId?: number | string;
   replyText: string;
-  parentId?: number;
+  parentId?: number | string;
 }
 
 export interface MeetingActionItemRequest {
