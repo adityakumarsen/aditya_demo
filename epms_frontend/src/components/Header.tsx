@@ -36,6 +36,9 @@ const PAGE_MAP: Record<string, PageInfo> = {
   "/continuous-feedback":  { title: "Continuous Feedback Stream" },
   "/performance-history":  { title: "Performance Pulse" },
   "/audit-logs":           { section: "Governance", title: "Enterprise Audit Logs" },
+  "/superadmin":           { section: "Governance", title: "Super Admin Control Center" },
+  "/superadmin/notifications": { section: "Governance", title: "Announcement & Notification Hub" },
+  "/superadmin/roles-permissions": { section: "Governance", title: "Role & Permission Management" },
 };
 
 function resolvePageInfo(pathname: string): PageInfo {

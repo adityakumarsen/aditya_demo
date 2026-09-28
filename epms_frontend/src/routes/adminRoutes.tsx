@@ -8,6 +8,8 @@ import PositionList from "../pages/admin/PositionList";
 import HRDashboard from "../pages/admin/HRDashboard";
 import TeamList from "../pages/admin/TeamList";
 import RolePermissionManagementPage from "../pages/superadmin/RolePermissionManagementPage";
+import SuperadminNotificationPage from "../pages/superadmin/SuperadminNotificationPage";
+import SuperAdminModule from "../modules/superadmin/SuperAdminModule";
 import EmployeeDepartmentHistory from "../pages/admin/org/EmployeeDepartmentHistory";
 import RoleLevelPermissionManager from "../pages/admin/org/RoleLevelPermissionManager";
 import FinancialYearManagement from "../pages/appraisal/FinancialYearManagement";
@@ -30,7 +32,9 @@ export const adminRoutes = [
   { path: "/permissions", element: <RolePermissionManagementPage /> },
   { path: "/permissions/matrix", element: <RolePermissionManagementPage /> },
   { path: "/permissions/assign", element: <RoleLevelPermissionManager /> },
+  { path: "/superadmin", element: <SuperAdminModule /> },
   { path: "/superadmin/roles-permissions", element: <RolePermissionManagementPage /> },
+  { path: "/superadmin/notifications", element: <SuperadminNotificationPage /> },
   { path: "/financial-years", element: <FinancialYearManagement /> },
   { path: "/performance-categories", element: <PerformanceCategoryManagement /> },
   { path: "/analytics", element: <AnalyticsDashboard /> }

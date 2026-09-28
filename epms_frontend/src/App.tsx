@@ -21,6 +21,8 @@ import { ActiveCycleProvider } from "./context/ActiveCycleContext";
 import KpiCategoryManager from './pages/kpi/KpiCategoryManager';
 import AuditLogPage from './pages/admin/AuditLogPage';
 import SystemRecordsPage from './pages/admin/SystemRecordsPage';
+import SuperAdminModule from './modules/superadmin/SuperAdminModule';
+import SuperadminNotificationPage from './pages/superadmin/SuperadminNotificationPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ChangePasswordPage from './pages/ChangePasswordPage';
@@ -115,7 +117,7 @@ const App = () => {
             {/* HR/Admin Management Routes */}
             <Route element={<ProtectedRoute allowedRoles={["ADMIN", "HR"]} />}>
               {/* Shared HR + Admin routes (employees, departments, org, etc.) */}
-              {adminRoutes.filter(r => !['/roles', '/permissions', '/permissions/matrix', '/permissions/assign', '/superadmin/roles-permissions', '/employees/:id/profile'].includes(r.path)).map((route) => (
+              {adminRoutes.filter(r => !['/roles', '/permissions', '/permissions/matrix', '/permissions/assign', '/superadmin', '/superadmin/roles-permissions', '/superadmin/notifications', '/employees/:id/profile'].includes(r.path)).map((route) => (
                 <Route key={route.path} path={route.path} element={route.element} />
               ))}
 
@@ -143,9 +145,11 @@ const App = () => {
               <Route path="/kpi/categories" element={<KpiCategoryManager />} />
             </Route>
 
-            {/* System Admin record inventory */}
+            {/* System Admin record inventory and Super Admin hub */}
             <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
               <Route path="/admin/records" element={<SystemRecordsPage />} />
+              <Route path="/superadmin" element={<SuperAdminModule />} />
+              <Route path="/superadmin/notifications" element={<SuperadminNotificationPage />} />
             </Route>
 
             {/* Approvals — requires calibrate permission */}

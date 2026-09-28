@@ -64,7 +64,7 @@ export const NotificationBell: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleNotificationClick = async (id: number, url: string) => {
+  const handleNotificationClick = async (id: string | number, url?: string) => {
     await markAsReadApi(id);
     dispatch(markAsRead(id));
     setIsOpen(false);
@@ -224,16 +224,20 @@ export const NotificationBell: React.FC = () => {
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: "#111827" }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>
                       {n.title}
                     </span>
                     <span style={{ fontSize: 11, color: "#9EA3B0", marginLeft: 8, whiteSpace: "nowrap" }}>
-                      {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(n.deliveryTime || n.createdAt), { addSuffix: true })}
                     </span>
                   </div>
                   <p style={{ fontSize: 12, color: "#5A6070", lineHeight: 1.5 }}>
                     {n.message}
                   </p>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, fontSize: 10, color: "#64748B" }}>
+                    <span>From: <strong style={{ color: "#334155" }}>{n.senderName || 'Super Admin'}</strong></span>
+                    {!n.isRead && <span style={{ color: "#2563eb", fontWeight: 700 }}>NEW</span>}
+                  </div>
                 </div>
               ))
             )}

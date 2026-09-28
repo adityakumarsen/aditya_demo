@@ -17,7 +17,7 @@ const NotificationsPage: React.FC = () => {
   const [markAsReadApi] = useMarkAsReadMutation();
   const [markAllAsReadApi] = useMarkAllAsReadMutation();
 
-  const handleNotificationClick = async (id: number, url: string) => {
+  const handleNotificationClick = async (id: string | number, url?: string) => {
     await markAsReadApi(id);
     dispatch(markAsRead(id));
     if (url) navigate(url);
@@ -70,10 +70,16 @@ const NotificationsPage: React.FC = () => {
                   <div className="flex items-center justify-between" style={{ marginBottom: 3 }}>
                     <h3 style={{ fontSize: 13, fontWeight: !notification.isRead ? 600 : 500, color: '#111827' }}>{notification.title}</h3>
                     <span style={{ fontSize: 11, color: '#9EA3B0', whiteSpace: 'nowrap', marginLeft: 12 }}>
-                      {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(notification.deliveryTime || notification.createdAt), { addSuffix: true })}
                     </span>
                   </div>
-                  <p style={{ fontSize: 12, color: !notification.isRead ? '#5A6070' : '#9EA3B0', lineHeight: 1.5 }}>{notification.message}</p>
+                  <p style={{ fontSize: 12, color: !notification.isRead ? '#334155' : '#64748B', lineHeight: 1.5 }}>{notification.message}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: '#94A3B8' }}>
+                    <span>From: <strong style={{ color: '#475569' }}>{notification.senderName || 'Super Admin'}</strong></span>
+                    {notification.deliveryTime && (
+                      <span>Delivered: {new Date(notification.deliveryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}</span>
+                    )}
+                  </div>
                   {notification.actionUrl && (
                     <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: '#1A56DB', opacity: 0 }} className="group-hover:opacity-100 transition-opacity">
                       <span>View details</span>

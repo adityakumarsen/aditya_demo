@@ -23,6 +23,7 @@ import {
   FileClock,
   Database,
   GraduationCap,
+  Bell,
 } from "lucide-react";
 
 interface NavItem {
@@ -39,6 +40,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Executive Dashboard", to: "/dashboard", icon: LayoutDashboard },
+  { label: "Announcement Hub", to: "/superadmin/notifications", icon: Bell, adminOnly: true },
   { label: "Assigned Mentees", to: "/manager/mentees", icon: Users },
   { label: "Performance Appraisals", to: "/appraisal", icon: ClipboardCheck, end: true },
   { label: "Performance Pulse", to: "/performance-history/admin", icon: History, adminOnly: true },
@@ -59,6 +61,7 @@ const ADMIN_ITEMS: NavItem[] = [
   { label: "Organizational Teams", to: "/teams", icon: Users },
   { label: "Financial Cycles", to: "/financial-years", icon: Calendar },
   { label: "Evaluation Criteria", to: "/performance-categories", icon: Layers },
+  { label: "Announcement Hub", to: "/superadmin/notifications", icon: Bell, adminOnly: true },
   { label: "Role & Permissions", to: "/superadmin/roles-permissions", icon: ShieldCheck, adminOnly: true },
   { label: "Security Roles", to: "/roles", icon: ShieldCheck, adminOnly: true },
   { label: "Access Permissions", to: "/permissions", icon: ShieldCheck, adminOnly: true, end: true },
@@ -82,6 +85,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
   const baseNav = NAV_ITEMS.filter((item) => {
     if (item.hideForAdmin && isAdmin) return false;
     switch (item.label) {
+      case "Announcement Hub":    return isAdmin;
       case "Assigned Mentees":    return isManager || isHR || isAdmin;
       case "Performance Pulse":   return hasPermission("REPORT_VIEW_ALL");
       case "Team Pulse":          return hasPermission("APPRAISAL_VIEW_TEAM") && !isAdmin && !isHR;

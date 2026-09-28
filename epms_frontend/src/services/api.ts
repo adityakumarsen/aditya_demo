@@ -47,6 +47,7 @@ export const api = createApi({
     "SuperAdminRoles",
     "SuperAdminPermissionsMatrix",
     "Audit",
+    "ScheduledNotifications",
   ],
   endpoints: () => ({}),
   // This adds more context to traces

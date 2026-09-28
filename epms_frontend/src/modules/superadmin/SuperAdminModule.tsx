@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ShieldCheck, Users, FileClock, BarChart3, Settings2, Lock } from "lucide-react";
+import { ShieldCheck, Users, FileClock, BarChart3, Settings2, Lock, Bell } from "lucide-react";
 
 export const SuperAdminModule = () => {
   return (
@@ -20,7 +20,7 @@ export const SuperAdminModule = () => {
         </span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <Link to="/employees" className="p-5 bg-white rounded-2xl border border-slate-200 hover:border-indigo-300 shadow-xs hover:shadow-md transition-all group">
           <Users className="text-indigo-600 mb-3" size={24} />
           <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600">Employee Directory & Access</h3>
@@ -37,6 +37,12 @@ export const SuperAdminModule = () => {
           <Settings2 className="text-indigo-600 mb-3" size={24} />
           <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600">Role & Permission Management</h3>
           <p className="text-xs text-slate-500 mt-1">Assign user roles, configure granular RBAC permission matrices, and manage access policies.</p>
+        </Link>
+
+        <Link to="/superadmin/notifications" className="p-5 bg-white rounded-2xl border border-slate-200 hover:border-indigo-300 shadow-xs hover:shadow-md transition-all group">
+          <Bell className="text-indigo-600 mb-3" size={24} />
+          <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600">Announcement Hub</h3>
+          <p className="text-xs text-slate-500 mt-1">Broadcast targeted announcements to Everyone, HR, Mentors, Interns, or specific users with scheduling.</p>
         </Link>
       </div>
     </div>
