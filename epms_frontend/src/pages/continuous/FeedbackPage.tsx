@@ -981,7 +981,7 @@ const FeedbackPage = () => {
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 16, borderTop: '1px solid #E2E8F0', flexWrap: 'wrap' }}>
                   <button type="button"
-                    onClick={() => { setShowModal(false); setEditingId(null); setEditingEmployee(null); setNewFeedback({ employeeId: 0, tagId: '', feedbackType: FeedbackType.PRAISE, description: '' }); }}
+                    onClick={() => { setShowModal(false); setEditingId(null); setEditingEmployee(null); setNewFeedback({ employeeId: '', tagId: '', feedbackType: FeedbackType.PRAISE, description: '' }); }}
                     className="office-button-secondary">
                     Cancel
                   </button>
