@@ -41,8 +41,17 @@ const panelStyle: React.CSSProperties = {
 
 const FEEDBACK_TYPE_STYLE: Record<string, { bg: string; text: string; border: string }> = {
   [FeedbackType.PRAISE]:      { bg: '#ECFDF5', text: '#047857', border: '#A7F3D0' },
+  'POSITIVE':                 { bg: '#ECFDF5', text: '#047857', border: '#A7F3D0' },
+  'REWARDS':                  { bg: '#ECFDF5', text: '#047857', border: '#A7F3D0' },
   [FeedbackType.IMPROVEMENT]: { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
+  'CONSTRUCTIVE':             { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
+  'COACHING':                 { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
+  'OBSERVATION':              { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
+  'PROGRESS':                 { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
+  'SATISFACTORY':             { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
+  'SUGGESTION':               { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
   [FeedbackType.WARNING]:     { bg: '#FFF5F5', text: '#B91C1C', border: '#FECACA' },
+  'NEGATIVE':                 { bg: '#FFF5F5', text: '#B91C1C', border: '#FECACA' },
 };
 
 const officeStyles = `
@@ -375,8 +384,9 @@ const ReplyItem = ({
 };
 
 const FeedbackPage = () => {
-  const { user, isManager, isAdmin, isHR } = useAuth();
-  const canCreate = isManager || isAdmin || isHR;
+  const { user, isManager, isAdmin, isHR, isIntern, hasPermission } = useAuth();
+  const canViewFeedback = isAdmin || hasPermission('FEEDBACK_VIEW') || isManager || isHR || isIntern;
+  const canCreate = isManager || isAdmin || isHR || hasPermission('FEEDBACK_GIVE');
 
   const [perspective, setPerspective] = useState<'all' | 'received' | 'given'>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -587,10 +597,18 @@ const FeedbackPage = () => {
   const endIndex = startIndex + feedbacks.length;
 
   const publishedFeedbacks = feedbacks?.filter(f => f.status === ContinuousStatus.PUBLISHED) || [];
-  const stats = {
-    praise: Math.round((publishedFeedbacks.filter(f => f.feedbackType === FeedbackType.PRAISE).length / (publishedFeedbacks.length || 1)) * 100),
-    improvement: Math.round((publishedFeedbacks.filter(f => f.feedbackType === FeedbackType.IMPROVEMENT).length / (publishedFeedbacks.length || 1)) * 100),
-    correction: Math.round((publishedFeedbacks.filter(f => f.feedbackType === FeedbackType.WARNING).length / (publishedFeedbacks.length || 1)) * 100),
+  const praiseList = [FeedbackType.PRAISE, 'POSITIVE', 'REWARDS'];
+  const imprList = [FeedbackType.IMPROVEMENT, 'CONSTRUCTIVE', 'COACHING', 'OBSERVATION', 'PROGRESS', 'SATISFACTORY', 'SUGGESTION'];
+  const warnList = [FeedbackType.WARNING, 'NEGATIVE'];
+
+  const stats = (feedbackStats && (feedbackStats.totalPublished || 0) > 0 && perspective === 'all' && !filterFeedbackType && !filterTagId && !filterCreatedAfter && !filterCreatedBefore) ? {
+    praise: Math.round(((feedbackStats.praise || 0) / feedbackStats.totalPublished) * 100),
+    improvement: Math.round(((feedbackStats.improvement || 0) / feedbackStats.totalPublished) * 100),
+    correction: Math.round(((feedbackStats.warning || 0) / feedbackStats.totalPublished) * 100),
+  } : {
+    praise: Math.round((publishedFeedbacks.filter(f => praiseList.includes(f.feedbackType)).length / (publishedFeedbacks.length || 1)) * 100),
+    improvement: Math.round((publishedFeedbacks.filter(f => imprList.includes(f.feedbackType)).length / (publishedFeedbacks.length || 1)) * 100),
+    correction: Math.round((publishedFeedbacks.filter(f => warnList.includes(f.feedbackType)).length / (publishedFeedbacks.length || 1)) * 100),
   };
   const btnPageStyle = (active: boolean): React.CSSProperties => ({
     width: 30, height: 30, borderRadius: 6, fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
@@ -712,21 +730,20 @@ const FeedbackPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Main Feed */}
         <div className="lg:col-span-2 space-y-4 order-2 lg:order-1 office-timeline-line">
-          {(isAdmin || isHR) && (
+          {!canViewFeedback && (
             <div style={{ background: '#FFFBEB', border: '1px dashed #F59E0B', borderRadius: 16, padding: '32px 24px', textAlign: 'center' }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: '#78350F', marginBottom: 6 }}>Access Restricted</h3>
-              <p style={{ fontSize: 12, color: '#92400E', marginBottom: 14 }}>Admins are restricted to viewing performance history only. Feedback details are hidden.</p>
-              <a href="/performance-history" className="office-button-primary" style={{ background: '#78350F', textDecoration: 'none' }}>Go to Performance History</a>
+              <p style={{ fontSize: 12, color: '#92400E', marginBottom: 14 }}>You are not authorized to view continuous feedback details.</p>
             </div>
           )}
 
-          {!(isAdmin || isHR) && feedbacks?.length === 0 && (
+          {canViewFeedback && feedbacks?.length === 0 && (
             <div style={{ padding: '48px 24px', textAlign: 'center', border: '2px dashed #E2E8F0', borderRadius: 20 }}>
               <p style={{ fontSize: 13, color: '#64748B' }}>No feedback entries yet.</p>
             </div>
           )}
 
-          {!(isAdmin || isHR) && feedbacks?.map((fb) => {
+          {canViewFeedback && feedbacks?.map((fb) => {
             const typeStyle = FEEDBACK_TYPE_STYLE[fb.feedbackType] || FEEDBACK_TYPE_STYLE[FeedbackType.PRAISE];
             return (
               <div key={fb.feedbackId} className="office-feed-card group">
@@ -790,7 +807,7 @@ const FeedbackPage = () => {
                     </svg>
                     Replies{(fb.replyCount ?? 0) > 0 ? ` (${fb.replyCount})` : ''}
                   </button>
-                  {fb.status === ContinuousStatus.DRAFT && fb.managerId === user?.id && (
+                  {fb.status === ContinuousStatus.DRAFT && (fb.managerId === user?.id || isAdmin || isHR) && (
                     <button type="button" onClick={() => handlePublish(fb.feedbackId)} disabled={isPublishing}
                       className="office-button-primary"
                       style={{ padding: '6px 12px', fontSize: 11 }}>
@@ -839,14 +856,14 @@ const FeedbackPage = () => {
             </div>
             <div>
               <p style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 3 }}>
-                {perspective === 'received' ? 'Received Published' : perspective === 'given' ? 'Given Published' : isManager ? 'Total Published' : 'Total Received'}
+                {perspective === 'received' ? 'Received Published' : perspective === 'given' ? 'Given Published' : 'Total Published'}
               </p>
               <p style={{ fontSize: 22, fontWeight: 800, color: '#0F172A' }}>
-                {perspective === 'received' ? (feedbackResponse?.totalElements || 0) : perspective === 'given' ? (feedbackStats?.totalPublished || 0) : isManager ? (feedbackStats?.totalPublished || 0) : totalItems}
+                {perspective === 'received' ? (feedbackResponse?.totalElements || 0) : perspective === 'given' ? (feedbackResponse?.totalElements || 0) : (feedbackStats?.totalPublished || totalItems)}
               </p>
             </div>
           </div>
-          {isManager && perspective !== 'received' && (
+          {(isManager || isAdmin || isHR) && perspective !== 'received' && (
             <button type="button"
               onClick={() => { setFilterStatus(ContinuousStatus.DRAFT); setCurrentPage(1); }}
               className="office-panel hover:border-[#FDE68A] transition-colors"

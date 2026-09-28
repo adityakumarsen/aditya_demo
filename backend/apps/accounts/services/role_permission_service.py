@@ -12,6 +12,8 @@ DEFAULT_ROLE_PERMISSIONS: Dict[str, List[Tuple[str, str]]] = {
         ('CYCLE_MANAGE', 'Create and configure performance cycles'),
         ('CRITERIA_MANAGE', 'Configure appraisal categories and rubrics'),
         ('REPORT_VIEW_ALL', 'View comprehensive organization-wide analytics'),
+        ('FEEDBACK_VIEW', 'Access and inspect continuous feedback stream'),
+        ('FEEDBACK_GIVE', 'Give, draft, and publish continuous performance feedback'),
     ],
     UserRole.HR: [
         ('CYCLE_MANAGE', 'Manage appraisal cycles and timelines'),
@@ -21,6 +23,8 @@ DEFAULT_ROLE_PERMISSIONS: Dict[str, List[Tuple[str, str]]] = {
         ('REPORT_VIEW_ALL', 'View department and company analytics'),
         ('KPI_LIBRARY_MANAGE', 'Manage organization KPI library'),
         ('APPRAISAL_VIEW_TEAM', 'View appraisals across organizational units'),
+        ('FEEDBACK_VIEW', 'Access organization-wide continuous feedback stream'),
+        ('FEEDBACK_GIVE', 'Give, draft, and publish continuous performance feedback'),
     ],
     UserRole.MANAGER: [
         ('GOAL_ASSIGN', 'Assign and calibrate team member goals and KRAs'),
@@ -29,6 +33,8 @@ DEFAULT_ROLE_PERMISSIONS: Dict[str, List[Tuple[str, str]]] = {
         ('PIP_CREATE', 'Initiate performance improvement plans'),
         ('MEETING_MANAGE', 'Conduct and document 1-on-1 sync meetings'),
         ('APPRAISAL_VIEW_TEAM', 'View appraisals for direct reports'),
+        ('FEEDBACK_VIEW', 'Access continuous feedback for team and peers'),
+        ('FEEDBACK_GIVE', 'Give, draft, and publish continuous performance feedback'),
     ],
     UserRole.INTERN: [
         ('GOAL_VIEW_OWN', 'View assigned goals and progress metrics'),
@@ -37,6 +43,7 @@ DEFAULT_ROLE_PERMISSIONS: Dict[str, List[Tuple[str, str]]] = {
         ('ATTENDANCE_LOG', 'Log and view daily working attendance'),
         ('IDP_VIEW', 'View individual development plan milestones'),
         ('PIP_VIEW_OWN', 'View own performance improvement plan if active'),
+        ('FEEDBACK_VIEW', 'View continuous feedback received and given'),
     ]
 }
 
@@ -178,6 +185,18 @@ SYSTEM_PERMISSIONS_CATALOG = [
         'name': 'Attendance Logging',
         'category': 'Growth & Attendance',
         'description': 'Record and view daily clock-in/out and shift logs.'
+    },
+    {
+        'code': 'FEEDBACK_VIEW',
+        'name': 'Continuous Feedback Visibility',
+        'category': 'Feedback & Recognition',
+        'description': 'Access and view continuous feedback entries and team recognition threads.'
+    },
+    {
+        'code': 'FEEDBACK_GIVE',
+        'name': 'Give Continuous Feedback',
+        'category': 'Feedback & Recognition',
+        'description': 'Compose, draft, and publish continuous performance feedback for team members.'
     }
 ]
 
@@ -234,6 +253,8 @@ class RolePermissionService:
 
         if user.role == UserRole.SUPER_ADMIN or getattr(user, 'is_superuser', False) or user.username == 'admin':
             effective.add('ALL')
+            effective.add('FEEDBACK_VIEW')
+            effective.add('FEEDBACK_GIVE')
 
         return sorted(list(effective))
 
