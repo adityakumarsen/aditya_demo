@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useCreatePipMutation, useCreateObjectiveMutation, useActivatePipMutation } from '../../services/pipApi';
 import { useGetEmployeesQuery, useGetManagerQuery } from '../../features/employee/employeeapi';
 import { useGetDepartmentsQuery } from '../../features/org/departmentApi';
+import { useAuth } from '../../hooks/useAuth';
 import { PipSeverity } from '../../features/pip/types';
 import type { PipCreateRequest } from '../../features/pip/types';
 import React from 'react';
@@ -41,6 +42,12 @@ const labelStyle: React.CSSProperties = {
 
 const PipCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+
+  if (isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const [createPip, { isLoading: isCreating }] = useCreatePipMutation();
   const [createObjective] = useCreateObjectiveMutation();
   const [activatePip, { isLoading: isActivating }] = useActivatePipMutation();

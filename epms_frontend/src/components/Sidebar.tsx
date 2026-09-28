@@ -45,8 +45,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Team Pulse", to: "/performance-history/manager", icon: History, privilegedOnly: true, hideForAdmin: true },
   { label: "Continuous Feedback", to: "/continuous-feedback", icon: MessageSquare },
   { label: "1-on-1 Sync Meetings", to: "/meetings", icon: Users, hideForAdmin: true },
-  { label: "PIP Recovery Plans", to: "/pip", icon: TrendingUp, end: true },
-  { label: "IDP Development Plans", to: "/idp", icon: GraduationCap, end: true },
+  { label: "PIP Recovery Plans", to: "/pip", icon: TrendingUp, end: true, hideForAdmin: true },
+  { label: "IDP Development Plans", to: "/idp", icon: GraduationCap, end: true, hideForAdmin: true },
   { label: "Strategic Analytics", to: "/analytics", icon: BarChart3, adminOnly: true },
   { label: "System Audit Logs", to: "/audit-logs", icon: FileClock },
 ];
@@ -87,8 +87,8 @@ const Sidebar = ({ onClose }: SidebarProps) => {
       case "Team Pulse":          return hasPermission("APPRAISAL_VIEW_TEAM") && !isAdmin && !isHR;
       case "Continuous Feedback": return true;
       case "1-on-1 Sync Meetings":return !isAdmin;
-      case "PIP Recovery Plans":  return hasPermission("PIP_VIEW_OWN") || hasPermission("PIP_CREATE");
-      case "IDP Development Plans": return true;
+      case "PIP Recovery Plans":  return (hasPermission("PIP_VIEW_OWN") || hasPermission("PIP_CREATE")) && !isAdmin;
+      case "IDP Development Plans": return !isAdmin;
       case "Strategic Analytics": return hasPermission("REPORT_VIEW_ALL");
       case "System Audit Logs":   return isAdmin || hasRole("AUDIT_VIEWER");
       default:                    return true;

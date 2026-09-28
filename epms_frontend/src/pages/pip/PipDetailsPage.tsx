@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   useGetPipByIdQuery,
@@ -55,7 +55,11 @@ const PipDetailsPage: React.FC = () => {
   const pip = pipResponse?.data;
   const objectives = objectivesResponse?.data ?? [];
   const reviews = reviewsResponse?.data ?? [];
-  const { user, isHR } = useAuth();
+  const { user, isHR, isAdmin } = useAuth();
+
+  if (isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const isCurrentEmployee = user?.id === pip?.employeeId;
   const isCurrentManager = user?.id === pip?.managerId;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Navigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ChevronLeft, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import EditIdpModal from "../../components/idp/EditIdpModal";
@@ -38,6 +38,10 @@ const IdpDetailsPage = () => {
   const { id } = useParams();
   const idpId = Number(id);
   const { user, isAdmin, isHR } = useAuth();
+
+  if (isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<DevelopmentGoalResponse | null>(null);

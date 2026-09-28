@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import type React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { CalendarDays, ChevronLeft, CheckCircle2, GraduationCap, Plus, Trash2, UserCheck } from "lucide-react";
 import { useGetAllEmployeesQuery, useGetManagerQuery } from "../../features/employee/employeeapi";
 import { useGetActiveDepartmentsQuery } from "../../features/org/departmentApi";
 import { useCreateIdpMutation } from "../../services/idpApi";
+import { useAuth } from "../../hooks/useAuth";
 
 const inputStyle: React.CSSProperties = {
   background: "#F5F6F8",
@@ -38,6 +39,12 @@ const panelStyle: React.CSSProperties = {
 
 const IdpCreatePage = () => {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+
+  if (isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const { data: employees = [] } = useGetAllEmployeesQuery();
   const { data: departments = [] } = useGetActiveDepartmentsQuery();
   const [createIdp, { isLoading }] = useCreateIdpMutation();

@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import type React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { format, parseISO, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { Activity, CheckCircle2, ChevronLeft, ChevronRight, Plus, TrendingUp, User } from "lucide-react";
 import { useGetEmployeesQuery } from "../../features/employee/employeeapi";
@@ -47,6 +47,11 @@ type TabKey = "SELF" | "OTHERS";
 const IdpListPage = () => {
   const navigate = useNavigate();
   const { user, isAdmin, isHR, isManager } = useAuth();
+
+  if (isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const canViewOthers = isAdmin || isHR || isManager;
   const [activeTab, setActiveTab] = useState<TabKey>("SELF");
   const [deptFilter, setDeptFilter] = useState("All Departments");

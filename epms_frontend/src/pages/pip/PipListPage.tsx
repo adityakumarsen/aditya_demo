@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { useGetPipsQuery, useGetPipsByInvolvedUserQuery } from '../../services/pipApi';
 import { useAuth } from '../../hooks/useAuth';
 import { useGetEmployeesQuery } from '../../features/employee/employeeapi';
@@ -40,6 +40,10 @@ const PipListPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isHR, isAdmin, isManager, user } = useAuth();
+
+  if (isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const scope = searchParams.get('scope') === 'mine' ? 'MINE' : 'ALL';
   const setScope = (newScope: 'ALL' | 'MINE') => {
