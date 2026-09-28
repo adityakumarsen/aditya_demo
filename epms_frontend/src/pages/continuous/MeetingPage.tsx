@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Navigate } from "react-router-dom";
 import { toast } from 'react-toastify';
 import { useAuth } from "../../hooks/useAuth";
 import {
@@ -285,6 +286,9 @@ const CommentItem = ({
 
 const MeetingPage = () => {
   const { user, isManager, isAdmin, isHR } = useAuth();
+  if (isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
   const canSchedule = isManager;
   const todayStr = new Date().toISOString().split('T')[0];
 

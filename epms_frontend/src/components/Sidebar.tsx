@@ -44,7 +44,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Performance Pulse", to: "/performance-history/admin", icon: History, adminOnly: true },
   { label: "Team Pulse", to: "/performance-history/manager", icon: History, privilegedOnly: true, hideForAdmin: true },
   { label: "Continuous Feedback", to: "/continuous-feedback", icon: MessageSquare },
-  { label: "1-on-1 Sync Meetings", to: "/meetings", icon: Users },
+  { label: "1-on-1 Sync Meetings", to: "/meetings", icon: Users, hideForAdmin: true },
   { label: "PIP Recovery Plans", to: "/pip", icon: TrendingUp, end: true },
   { label: "IDP Development Plans", to: "/idp", icon: GraduationCap, end: true },
   { label: "Strategic Analytics", to: "/analytics", icon: BarChart3, adminOnly: true },
@@ -80,12 +80,13 @@ const Sidebar = ({ onClose }: SidebarProps) => {
   const isInternUser = isIntern || (!isAdmin && !isHR && !isManager);
 
   const baseNav = NAV_ITEMS.filter((item) => {
+    if (item.hideForAdmin && isAdmin) return false;
     switch (item.label) {
       case "Assigned Mentees":    return isManager || isHR || isAdmin;
       case "Performance Pulse":   return hasPermission("REPORT_VIEW_ALL");
       case "Team Pulse":          return hasPermission("APPRAISAL_VIEW_TEAM") && !isAdmin && !isHR;
       case "Continuous Feedback": return true;
-      case "1-on-1 Sync Meetings":return true;
+      case "1-on-1 Sync Meetings":return !isAdmin;
       case "PIP Recovery Plans":  return hasPermission("PIP_VIEW_OWN") || hasPermission("PIP_CREATE");
       case "IDP Development Plans": return true;
       case "Strategic Analytics": return hasPermission("REPORT_VIEW_ALL");
