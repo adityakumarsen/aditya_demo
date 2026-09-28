@@ -108,6 +108,7 @@ urlpatterns = [
     re_path(r'^feedbacks/stats/(?P<employee_id>[^/]+)/?$', FeedbackEmployeeStatsCompatView.as_view(), name='compat_feedbacks_profile_stats'),
     re_path(r'^feedbacks/(?P<pk>[^/]+)/replies/?$', FeedbackRepliesCompatView.as_view(), name='compat_feedbacks_replies'),
     re_path(r'^feedbacks/(?P<pk>[^/]+)/comments/?$', FeedbackRepliesCompatView.as_view(), name='compat_feedbacks_comments'),
+    re_path(r'^feedbacks/replies/(?P<reply_id>[^/]+)/?$', FeedbackRepliesCompatView.as_view(), name='compat_feedbacks_reply_detail'),
     re_path(r'^feedbacks/(?P<pk>[^/]+)/publish/?$', FeedbackPublishCompatView.as_view(), name='compat_feedbacks_publish'),
     re_path(r'^feedbacks/manager/(?P<manager_id>[^/]+)/?$', FeedbacksCompatView.as_view(), name='compat_feedbacks_mgr'),
     re_path(r'^feedbacks/employee/(?P<employee_id>[^/]+)/?$', FeedbacksCompatView.as_view(), name='compat_feedbacks_emp'),

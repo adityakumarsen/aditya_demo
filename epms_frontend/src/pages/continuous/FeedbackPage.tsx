@@ -376,7 +376,7 @@ const ReplyItem = ({
 
 const FeedbackPage = () => {
   const { user, isManager, isAdmin, isHR } = useAuth();
-  const canCreate = isManager;
+  const canCreate = isManager || isAdmin || isHR;
 
   const [perspective, setPerspective] = useState<'all' | 'received' | 'given'>('all');
   const [currentPage, setCurrentPage] = useState(1);

@@ -12,6 +12,8 @@ class FeedbackType(models.TextChoices):
     TRAINING = 'TRAINING', 'Training'
     SATISFACTORY = 'SATISFACTORY', 'Satisfactory'
     PRAISE = 'PRAISE', 'Praise'
+    IMPROVEMENT = 'IMPROVEMENT', 'Improvement'
+    WARNING = 'WARNING', 'Warning'
     COACHING = 'COACHING', 'Coaching'
     SUGGESTION = 'SUGGESTION', 'Suggestion'
     GENERAL = 'GENERAL', 'General'
@@ -24,6 +26,22 @@ class FeedbackVisibility(models.TextChoices):
 class FeedbackStatus(models.TextChoices):
     DRAFT = 'DRAFT', 'Draft'
     PUBLISHED = 'PUBLISHED', 'Published'
+
+
+class FeedbackTag(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Feedback Tag'
+        verbose_name_plural = 'Feedback Tags'
+        ordering = ['id']
+
+    def __str__(self):
+        return self.name
+
 
 class Feedback(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -38,6 +56,13 @@ class Feedback(models.Model):
         on_delete=models.CASCADE,
         related_name='received_feedbacks',
         db_index=True
+    )
+    tag = models.ForeignKey(
+        FeedbackTag,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='feedbacks'
     )
     goal = models.ForeignKey(
         'goals.Goal',
@@ -63,6 +88,7 @@ class Feedback(models.Model):
         choices=FeedbackStatus.choices,
         default=FeedbackStatus.PUBLISHED
     )
+    published_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -87,6 +113,13 @@ class FeedbackComment(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='feedback_comments'
+    )
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='replies'
     )
     comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)

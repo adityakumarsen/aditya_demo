@@ -46,7 +46,9 @@ def map_employee(profile: EmployeeProfile) -> dict:
         roles.append('EMPLOYEE')
 
     return {
-        "id": str(profile.id),
+        "id": str(user.id),
+        "profileId": str(profile.id),
+        "userId": str(user.id),
         "employeeCode": profile.employee_code,
         "staffName": profile.full_name or user.username,
         "email": user.email,
@@ -315,9 +317,11 @@ class EmployeeCompatView(APIView):
     def get(self, request, pk=None):
         if pk:
             try:
-                profile = EmployeeProfile.objects.get(id=pk)
-                return ok_response(map_employee(profile))
-            except EmployeeProfile.DoesNotExist:
+                profile = EmployeeProfile.objects.filter(Q(id=pk) | Q(user__id=pk)).first()
+                if profile:
+                    return ok_response(map_employee(profile))
+                return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+            except Exception:
                 return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # List with optional pagination
@@ -1087,159 +1091,362 @@ class GenericListCompatView(APIView):
 # Continuous Feedback & Tags Compatibility
 # ==========================================
 
-DEFAULT_FEEDBACK_TAGS = [
-    {"tagId": 1, "tagName": "Technical Excellence"},
-    {"tagId": 2, "tagName": "Leadership & Mentorship"},
-    {"tagId": 3, "tagName": "Collaboration & Teamwork"},
-    {"tagId": 4, "tagName": "Innovation & Problem Solving"},
-    {"tagId": 5, "tagName": "Punctuality & Delivery"},
-    {"tagId": 6, "tagName": "Communication & Culture"},
-]
+from apps.feedback.models import Feedback, FeedbackTag, FeedbackComment, FeedbackStatus, FeedbackType
+
+
+def resolve_user(user_or_profile_id):
+    """Resolve a User instance from a User ID, EmployeeProfile ID, or username."""
+    if not user_or_profile_id:
+        return None
+    # 1. By User UUID / pk
+    try:
+        u = User.objects.filter(id=user_or_profile_id).first()
+        if u:
+            return u
+    except Exception:
+        pass
+    # 2. By EmployeeProfile UUID / pk
+    try:
+        p = EmployeeProfile.objects.filter(id=user_or_profile_id).first()
+        if p and p.user:
+            return p.user
+    except Exception:
+        pass
+    # 3. By username or email
+    u = User.objects.filter(Q(username=str(user_or_profile_id)) | Q(email=str(user_or_profile_id))).first()
+    if u:
+        return u
+    return None
+
+
+def map_feedback(fb, current_user=None):
+    sender = fb.sender
+    recipient = fb.recipient
+
+    sender_name = sender.username
+    if hasattr(sender, 'profile') and sender.profile and sender.profile.full_name:
+        sender_name = sender.profile.full_name
+
+    recipient_name = recipient.username
+    if hasattr(recipient, 'profile') and recipient.profile and recipient.profile.full_name:
+        recipient_name = recipient.profile.full_name
+
+    tag_data = {
+        "tagId": fb.tag.id if fb.tag else 1,
+        "tagName": fb.tag.name if fb.tag else "General Feedback",
+    }
+
+    created_iso = fb.created_at.isoformat() if fb.created_at else timezone.now().isoformat()
+    pub_iso = fb.published_at.isoformat() if fb.published_at else created_iso
+
+    return {
+        "feedbackId": str(fb.id),
+        "id": str(fb.id),
+        "employeeId": str(recipient.id),
+        "employeeName": recipient_name,
+        "managerId": str(sender.id),
+        "managerName": sender_name,
+        "feedbackType": fb.feedback_type,
+        "tag": tag_data,
+        "description": fb.message,
+        "status": fb.status or "PUBLISHED",
+        "createdBy": str(sender.id),
+        "replyCount": fb.comments.count(),
+        "createdAt": created_iso,
+        "publishedAt": pub_iso,
+    }
+
+
+def map_reply(c):
+    author = c.author
+    author_name = author.username
+    if hasattr(author, 'profile') and author.profile and author.profile.full_name:
+        author_name = author.profile.full_name
+
+    return {
+        "replyId": str(c.id),
+        "feedbackId": str(c.feedback.id),
+        "employeeId": str(author.id),
+        "employeeName": author_name,
+        "replyText": c.comment,
+        "parentId": str(c.parent.id) if c.parent else None,
+        "children": [],
+        "createdAt": c.created_at.isoformat() if c.created_at else timezone.now().isoformat(),
+    }
+
 
 class TagsCompatView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk=None):
-        return ok_response(DEFAULT_FEEDBACK_TAGS)
+        if pk:
+            tag = FeedbackTag.objects.filter(id=pk).first()
+            if not tag:
+                return err_response("Tag not found", 404)
+            return ok_response({"tagId": tag.id, "tagName": tag.name, "description": tag.description, "isActive": tag.is_active})
+
+        tags = FeedbackTag.objects.filter(is_active=True).order_by('id')
+        data = [{"tagId": t.id, "tagName": t.name, "description": t.description, "isActive": t.is_active} for t in tags]
+        return ok_response(data)
 
     def post(self, request):
-        tag_name = request.data.get("tagName", "New Tag")
-        new_tag = {"tagId": len(DEFAULT_FEEDBACK_TAGS) + 1, "tagName": tag_name}
-        DEFAULT_FEEDBACK_TAGS.append(new_tag)
-        return ok_response(new_tag)
+        tag_name = (request.data.get("tagName") or request.data.get("name") or "").strip()
+        if not tag_name:
+            return err_response("Tag name is required", 400)
+        desc = request.data.get("description", "")
+        tag, _ = FeedbackTag.objects.get_or_create(name=tag_name, defaults={"description": desc, "is_active": True})
+        if not tag.is_active:
+            tag.is_active = True
+            tag.save()
+        return ok_response({"tagId": tag.id, "tagName": tag.name, "description": tag.description, "isActive": tag.is_active})
 
     def put(self, request, pk=None):
-        tag_name = request.data.get("tagName", "Updated Tag")
-        return ok_response({"tagId": int(pk) if str(pk).isdigit() else 1, "tagName": tag_name})
+        tag = FeedbackTag.objects.filter(id=pk).first()
+        if not tag:
+            return err_response("Tag not found", 404)
+        new_name = (request.data.get("tagName") or request.data.get("name") or "").strip()
+        if new_name:
+            tag.name = new_name
+        if "description" in request.data:
+            tag.description = request.data["description"]
+        if "isActive" in request.data:
+            tag.is_active = bool(request.data["isActive"])
+        tag.save()
+        return ok_response({"tagId": tag.id, "tagName": tag.name, "description": tag.description, "isActive": tag.is_active})
 
     def delete(self, request, pk=None):
-        return ok_response({"success": True})
+        tag = FeedbackTag.objects.filter(id=pk).first()
+        if not tag:
+            return err_response("Tag not found", 404)
+        tag.is_active = False
+        tag.save(update_fields=['is_active'])
+        return ok_response({"success": True, "message": "Tag deleted successfully"})
 
 
 class FeedbacksCompatView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        from apps.feedback.models import Feedback
+        pk = kwargs.get("pk")
+        employee_id = kwargs.get("employee_id")
+        manager_id = kwargs.get("manager_id")
+
+        # Single detail lookup
+        if pk and pk not in ["manager", "employee"]:
+            fb = Feedback.objects.select_related("sender", "recipient", "sender__profile", "recipient__profile", "tag").filter(id=pk).first()
+            if not fb:
+                return err_response("Feedback not found", 404)
+            return ok_response(map_feedback(fb, request.user))
+
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 10))
 
-        qs = Feedback.objects.select_related("sender", "recipient", "sender__profile", "recipient__profile").all()
+        qs = Feedback.objects.select_related(
+            "sender", "recipient", "sender__profile", "recipient__profile", "tag"
+        ).prefetch_related("comments").all()
+
+        user = request.user
+        is_admin_or_hr = user.role in [UserRole.SUPER_ADMIN, UserRole.HR] or getattr(user, 'is_superuser', False)
+
+        if employee_id:
+            resolved_emp = resolve_user(employee_id)
+            if resolved_emp:
+                qs = qs.filter(recipient=resolved_emp)
+            else:
+                qs = qs.none()
+            if not is_admin_or_hr and user != resolved_emp:
+                qs = qs.filter(status=FeedbackStatus.PUBLISHED)
+        elif manager_id:
+            resolved_mgr = resolve_user(manager_id)
+            if resolved_mgr:
+                qs = qs.filter(sender=resolved_mgr)
+            else:
+                qs = qs.none()
+            if not is_admin_or_hr and user != resolved_mgr:
+                qs = qs.filter(status=FeedbackStatus.PUBLISHED)
+        else:
+            # Perspective === 'all'
+            if not is_admin_or_hr:
+                if user.role == UserRole.MANAGER:
+                    dept_id = getattr(getattr(user, 'profile', None), 'department_id', None)
+                    if dept_id:
+                        qs = qs.filter(
+                            Q(sender=user) |
+                            Q(recipient=user) |
+                            Q(recipient__profile__department_id=dept_id)
+                        )
+                    else:
+                        qs = qs.filter(Q(sender=user) | Q(recipient=user))
+                else:
+                    qs = qs.filter(Q(sender=user) | (Q(recipient=user) & Q(status=FeedbackStatus.PUBLISHED)))
+
+        status_param = request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status__iexact=status_param.strip())
+
+        fb_type = request.query_params.get("feedbackType")
+        if fb_type and fb_type != "ALL":
+            qs = qs.filter(feedback_type__iexact=fb_type.strip())
+
+        tag_id = request.query_params.get("tagId")
+        if tag_id and str(tag_id) not in ["0", "ALL", "undefined"]:
+            try:
+                qs = qs.filter(tag_id=int(tag_id))
+            except (ValueError, TypeError):
+                pass
+
+        created_after = request.query_params.get("createdAfter")
+        if created_after:
+            qs = qs.filter(created_at__gte=created_after)
+
+        created_before = request.query_params.get("createdBefore")
+        if created_before:
+            qs = qs.filter(created_at__lte=created_before)
+
+        qs = qs.order_by("-created_at")
         total = qs.count()
         start = page * size
         end = start + size
         feedbacks = qs[start:end]
 
-        content = []
-        for idx, fb in enumerate(feedbacks):
-            sender_name = fb.sender.profile.full_name if hasattr(fb.sender, 'profile') and fb.sender.profile and fb.sender.profile.full_name else fb.sender.username
-            recipient_name = fb.recipient.profile.full_name if hasattr(fb.recipient, 'profile') and fb.recipient.profile and fb.recipient.profile.full_name else fb.recipient.username
-            content.append({
-                "feedbackId": idx + 1 + start,
-                "id": str(fb.id),
-                "employeeId": 1,
-                "employeeName": recipient_name,
-                "managerId": 2,
-                "managerName": sender_name,
-                "feedbackType": fb.feedback_type,
-                "tag": {"tagId": 1, "tagName": "Technical Excellence"},
-                "description": fb.message,
-                "status": fb.status or "PUBLISHED",
-                "createdBy": 2,
-                "replyCount": fb.comments.count() if hasattr(fb, 'comments') else 0,
-                "createdAt": fb.created_at.isoformat() if fb.created_at else "2026-09-20T00:00:00Z",
-                "publishedAt": fb.created_at.isoformat() if fb.created_at else "2026-09-20T00:00:00Z",
-            })
-
-        if not content:
-            content = [
-                {
-                    "feedbackId": 1,
-                    "id": "1",
-                    "employeeId": 1,
-                    "employeeName": request.user.username,
-                    "managerId": 2,
-                    "managerName": "Executive Leadership",
-                    "feedbackType": "PRAISE",
-                    "tag": {"tagId": 1, "tagName": "Technical Excellence"},
-                    "description": "Consistently demonstrates high velocity, clean architecture, and thorough testing.",
-                    "status": "PUBLISHED",
-                    "createdBy": 2,
-                    "replyCount": 1,
-                    "createdAt": "2026-09-20T12:00:00Z",
-                    "publishedAt": "2026-09-20T12:00:00Z",
-                },
-                {
-                    "feedbackId": 2,
-                    "id": "2",
-                    "employeeId": 1,
-                    "employeeName": request.user.username,
-                    "managerId": 2,
-                    "managerName": "Executive Leadership",
-                    "feedbackType": "IMPROVEMENT",
-                    "tag": {"tagId": 3, "tagName": "Collaboration & Teamwork"},
-                    "description": "Great progress on quarterly OKRs; continue active cross-functional knowledge sharing.",
-                    "status": "PUBLISHED",
-                    "createdBy": 2,
-                    "replyCount": 0,
-                    "createdAt": "2026-09-18T09:30:00Z",
-                    "publishedAt": "2026-09-18T09:30:00Z",
-                }
-            ]
-            total = len(content)
+        content = [map_feedback(fb, user) for fb in feedbacks]
+        total_pages = max(1, (total + size - 1) // size)
 
         return ok_response({
             "content": content,
             "page": page,
             "size": size,
             "totalElements": total,
-            "totalPages": max(1, (total + size - 1) // size),
-            "last": (page + 1) * size >= total
+            "totalPages": total_pages,
+            "last": (page + 1) >= total_pages
         })
 
     def post(self, request, *args, **kwargs):
-        from apps.feedback.models import Feedback, FeedbackStatus, FeedbackType
         sender = request.user
-        recipient = User.objects.exclude(id=sender.id).first() or sender
-        message = request.data.get("description") or request.data.get("message") or "Constructive feedback"
-        fb_type = request.data.get("feedbackType", "PRAISE").upper()
-        if fb_type not in FeedbackType.values:
-            fb_type = FeedbackType.POSITIVE
+        emp_id = request.data.get("employeeId")
+        recipient = resolve_user(emp_id)
+        if not recipient:
+            return err_response("Target employee not found", 400)
+
+        mgr_id = request.data.get("managerId")
+        if mgr_id and request.user.role in [UserRole.SUPER_ADMIN, UserRole.HR]:
+            resolved_mgr = resolve_user(mgr_id)
+            if resolved_mgr:
+                sender = resolved_mgr
+
+        tag_id = request.data.get("tagId")
+        tag = None
+        if tag_id:
+            try:
+                tag = FeedbackTag.objects.filter(id=int(tag_id)).first()
+            except (ValueError, TypeError):
+                tag = None
+
+        message = request.data.get("description") or request.data.get("message") or ""
+        if not message.strip():
+            return err_response("Feedback description is required", 400)
+
+        fb_type_raw = (request.data.get("feedbackType") or "PRAISE").upper()
+        if fb_type_raw not in FeedbackType.values:
+            fb_type = FeedbackType.PRAISE
+        else:
+            fb_type = fb_type_raw
+
+        status_raw = (request.data.get("status") or "PUBLISHED").upper()
+        if status_raw not in [FeedbackStatus.DRAFT, FeedbackStatus.PUBLISHED]:
+            status_val = FeedbackStatus.PUBLISHED
+        else:
+            status_val = status_raw
+
+        pub_at = timezone.now() if status_val == FeedbackStatus.PUBLISHED else None
 
         fb = Feedback.objects.create(
             sender=sender,
             recipient=recipient,
+            tag=tag,
             feedback_type=fb_type,
-            message=message,
-            status=FeedbackStatus.PUBLISHED
+            message=message.strip(),
+            status=status_val,
+            published_at=pub_at
         )
-        return ok_response({
-            "feedbackId": 1,
-            "id": str(fb.id),
-            "employeeId": 1,
-            "employeeName": recipient.username,
-            "managerId": 2,
-            "managerName": sender.username,
-            "feedbackType": fb_type,
-            "tag": {"tagId": 1, "tagName": "Technical Excellence"},
-            "description": message,
-            "status": "PUBLISHED",
-            "createdBy": 2,
-            "replyCount": 0,
-            "createdAt": fb.created_at.isoformat(),
-            "publishedAt": fb.created_at.isoformat()
-        })
+
+        return ok_response(map_feedback(fb, request.user))
+
+    def put(self, request, pk=None, *args, **kwargs):
+        fb = Feedback.objects.filter(id=pk).first()
+        if not fb:
+            return err_response("Feedback not found", 404)
+
+        user = request.user
+        if user.role not in [UserRole.SUPER_ADMIN, UserRole.HR] and fb.sender != user:
+            return err_response("Permission denied to edit this feedback", 403)
+
+        if "description" in request.data:
+            fb.message = request.data["description"].strip()
+        elif "message" in request.data:
+            fb.message = request.data["message"].strip()
+
+        if "feedbackType" in request.data:
+            fb_type_raw = request.data["feedbackType"].upper()
+            if fb_type_raw in FeedbackType.values:
+                fb.feedback_type = fb_type_raw
+
+        if "tagId" in request.data:
+            try:
+                t = FeedbackTag.objects.filter(id=int(request.data["tagId"])).first()
+                if t:
+                    fb.tag = t
+            except (ValueError, TypeError):
+                pass
+
+        if "status" in request.data:
+            st_raw = request.data["status"].upper()
+            if st_raw in [FeedbackStatus.DRAFT, FeedbackStatus.PUBLISHED]:
+                fb.status = st_raw
+                if st_raw == FeedbackStatus.PUBLISHED and not fb.published_at:
+                    fb.published_at = timezone.now()
+
+        fb.save()
+        return ok_response(map_feedback(fb, request.user))
+
+    def delete(self, request, pk=None, *args, **kwargs):
+        fb = Feedback.objects.filter(id=pk).first()
+        if not fb:
+            return err_response("Feedback not found", 404)
+
+        user = request.user
+        if user.role not in [UserRole.SUPER_ADMIN, UserRole.HR] and fb.sender != user:
+            return err_response("Permission denied to delete this feedback", 403)
+
+        fb.delete()
+        return ok_response({"success": True, "message": "Feedback deleted successfully"})
 
 
 class FeedbackManagerStatsCompatView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, manager_id=None):
-        from apps.feedback.models import Feedback
-        total = Feedback.objects.count()
+        user = request.user
+        is_admin_or_hr = user.role in [UserRole.SUPER_ADMIN, UserRole.HR] or getattr(user, 'is_superuser', False)
+
+        qs = Feedback.objects.all()
+        if manager_id:
+            resolved_mgr = resolve_user(manager_id)
+            if resolved_mgr and not (is_admin_or_hr and str(manager_id) == str(user.id)):
+                qs = qs.filter(sender=resolved_mgr)
+
+        total_pub = qs.filter(status=FeedbackStatus.PUBLISHED).count()
+        total_draft = qs.filter(status=FeedbackStatus.DRAFT).count()
+        praise_cnt = qs.filter(status=FeedbackStatus.PUBLISHED, feedback_type=FeedbackType.PRAISE).count()
+        impr_cnt = qs.filter(status=FeedbackStatus.PUBLISHED, feedback_type=FeedbackType.IMPROVEMENT).count()
+        warn_cnt = qs.filter(status=FeedbackStatus.PUBLISHED, feedback_type=FeedbackType.WARNING).count()
+
         return ok_response({
-            "totalPublished": max(total, 4),
-            "totalDraft": 0
+            "totalPublished": total_pub,
+            "totalDraft": total_draft,
+            "praise": praise_cnt,
+            "improvement": impr_cnt,
+            "warning": warn_cnt,
         })
 
 
@@ -1247,49 +1454,138 @@ class FeedbackEmployeeStatsCompatView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, employee_id=None):
-        from apps.feedback.models import Feedback
-        total = Feedback.objects.count()
+        qs = Feedback.objects.all()
+        if employee_id:
+            resolved_emp = resolve_user(employee_id)
+            if resolved_emp:
+                qs = qs.filter(recipient=resolved_emp)
+
+        total_pub = qs.filter(status=FeedbackStatus.PUBLISHED).count()
+        total_draft = qs.filter(status=FeedbackStatus.DRAFT).count()
+        praise_cnt = qs.filter(status=FeedbackStatus.PUBLISHED, feedback_type=FeedbackType.PRAISE).count()
+        impr_cnt = qs.filter(status=FeedbackStatus.PUBLISHED, feedback_type=FeedbackType.IMPROVEMENT).count()
+        warn_cnt = qs.filter(status=FeedbackStatus.PUBLISHED, feedback_type=FeedbackType.WARNING).count()
+
         return ok_response({
-            "totalPublished": max(total, 4),
-            "totalDraft": 0
+            "totalPublished": total_pub,
+            "totalDraft": total_draft,
+            "praise": praise_cnt,
+            "improvement": impr_cnt,
+            "warning": warn_cnt,
         })
 
 
 class FeedbackRepliesCompatView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, pk=None):
-        return ok_response([
-            {
-                "replyId": 1,
-                "feedbackId": int(pk) if str(pk).isdigit() else 1,
-                "employeeId": 1,
-                "employeeName": request.user.username,
-                "replyText": "Thank you for the constructive guidance and review!",
-                "createdAt": "2026-09-20T14:30:00Z"
-            }
-        ])
+    def get(self, request, pk=None, reply_id=None):
+        target_feedback_id = pk
+        if not target_feedback_id:
+            return ok_response([])
 
-    def post(self, request, pk=None):
-        text = request.data.get("replyText") or request.data.get("comment") or "Acknowledged"
-        return ok_response({
-            "replyId": 2,
-            "feedbackId": int(pk) if str(pk).isdigit() else 1,
-            "employeeId": 1,
-            "employeeName": request.user.username,
-            "replyText": text,
-            "createdAt": "2026-09-20T22:30:00Z"
-        })
+        comments = FeedbackComment.objects.select_related(
+            "author", "author__profile", "feedback", "parent"
+        ).filter(feedback_id=target_feedback_id).order_by("created_at")
+
+        reply_map = {}
+        for c in comments:
+            reply_map[str(c.id)] = map_reply(c)
+
+        root_replies = []
+        for c in comments:
+            cid = str(c.id)
+            pid = str(c.parent_id) if c.parent_id else None
+            if pid and pid in reply_map:
+                reply_map[pid]["children"].append(reply_map[cid])
+            else:
+                root_replies.append(reply_map[cid])
+
+        return ok_response(root_replies)
+
+    def post(self, request, pk=None, reply_id=None):
+        target_feedback_id = pk
+        fb = Feedback.objects.filter(id=target_feedback_id).first()
+        if not fb:
+            return err_response("Feedback not found", 404)
+
+        text = (request.data.get("replyText") or request.data.get("comment") or "").strip()
+        if not text:
+            return err_response("Reply text cannot be empty", 400)
+
+        parent_id = request.data.get("parentId")
+        parent = None
+        if parent_id:
+            parent = FeedbackComment.objects.filter(id=parent_id).first()
+
+        author = request.user
+        emp_id = request.data.get("employeeId")
+        if emp_id and request.user.role in [UserRole.SUPER_ADMIN, UserRole.HR]:
+            resolved = resolve_user(emp_id)
+            if resolved:
+                author = resolved
+
+        comment = FeedbackComment.objects.create(
+            feedback=fb,
+            author=author,
+            parent=parent,
+            comment=text
+        )
+        return ok_response(map_reply(comment))
+
+    def put(self, request, pk=None, reply_id=None):
+        target_id = reply_id or pk
+        comment = FeedbackComment.objects.select_related("author", "author__profile", "feedback").filter(id=target_id).first()
+        if not comment:
+            return err_response("Reply not found", 404)
+
+        user = request.user
+        if user.role not in [UserRole.SUPER_ADMIN, UserRole.HR] and comment.author != user:
+            return err_response("Permission denied to edit this reply", 403)
+
+        new_text = (request.data.get("replyText") or request.data.get("comment") or "").strip()
+        if new_text:
+            comment.comment = new_text
+            comment.save()
+
+        return ok_response(map_reply(comment))
+
+    def delete(self, request, pk=None, reply_id=None):
+        target_id = reply_id or pk
+        comment = FeedbackComment.objects.filter(id=target_id).first()
+        if not comment:
+            return err_response("Reply not found", 404)
+
+        user = request.user
+        if user.role not in [UserRole.SUPER_ADMIN, UserRole.HR] and comment.author != user:
+            return err_response("Permission denied to delete this reply", 403)
+
+        comment.delete()
+        return ok_response({"success": True, "message": "Reply deleted successfully"})
 
 
 class FeedbackPublishCompatView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    def _publish(self, request, pk):
+        fb = Feedback.objects.filter(id=pk).first()
+        if not fb:
+            return err_response("Feedback not found", 404)
+
+        user = request.user
+        if user.role not in [UserRole.SUPER_ADMIN, UserRole.HR] and fb.sender != user:
+            return err_response("Permission denied to publish this feedback", 403)
+
+        fb.status = FeedbackStatus.PUBLISHED
+        if not fb.published_at:
+            fb.published_at = timezone.now()
+        fb.save(update_fields=['status', 'published_at'])
+        return ok_response(map_feedback(fb, request.user))
+
     def patch(self, request, pk=None):
-        return ok_response({"feedbackId": pk, "status": "PUBLISHED", "message": "Feedback published"})
+        return self._publish(request, pk)
 
     def post(self, request, pk=None):
-        return ok_response({"feedbackId": pk, "status": "PUBLISHED", "message": "Feedback published"})
+        return self._publish(request, pk)
 
 
 # ==========================================
